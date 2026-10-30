@@ -1,33 +1,32 @@
 bits 16
-org 0x7C00
+org 0x7E00
 
 CODE_SEG equ gdtCode - gdtStart
 DATA_SEG equ gdtData - gdtStart
-KERNEL_ENTRY_ADDRESS equ 1000
-
-boot:
-	jmp start
+KERNEL_ENTRY_ADDRESS equ 10000
 
 start:
+	pop dx
 	mov [bootDrive], dl
-
-	cli
-	xor ax, ax
-	mov es, ax
-	mov ds, ax
-	mov ss, ax
-	mov sp, 0x7C00
-	sti
-
+	
 	; set video mode
 	mov ax, 0x0013
 	int 0x10
-	
+
 	; load kernel off disk
 	mov ah, 0x42
 	mov dl, [bootDrive]
 	mov si, diskAddressPacket
 	int 0x13
+	
+set_a20:
+	in al, 0x92
+	test al, 2
+	jnz .done
+	or al, 2
+	and al, 0xFE
+	out 0x92, al
+.done:
 
 	; load gdt
 	cli
@@ -38,6 +37,21 @@ start:
 	mov cr0, eax
 
 	jmp CODE_SEG:start32
+
+print:
+	mov ah, 0x0E
+.loop:
+	lodsb
+	cmp al, 0
+	je .done
+	int 0x10
+	jmp .loop
+.done:
+	ret
+
+stop:
+	hlt
+	jmp stop
 
 bootDrive:
 	db 0
@@ -72,13 +86,13 @@ diskAddressPacket:
 .zero:
 	db 0
 .sectorCount:
-	dw 2
+	dw 3
 .bufferSegment:
 	dw KERNEL_ENTRY_ADDRESS
 .bufferOffset:
 	dw 0
 .address:
-	dq 2
+	dq 3
 
 bits 32
 
@@ -92,9 +106,4 @@ start32:
 
 	jmp KERNEL_ENTRY_ADDRESS
 
-stop:
-	hlt
-	jmp stop
-
-times 510-($-$$) db 0
-dw 0xAA55
+times 1024-($-$$) db 0

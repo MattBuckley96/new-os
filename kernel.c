@@ -1,12 +1,14 @@
+#define false 0
+#define true 1
+
 void kernel_main(void)
 {
-    unsigned char* videoMemory = (unsigned char*)0xA0000;
-    
     int videoWidth = 320;
     int videoHeight = 200;
-    unsigned char color = 0;
+    unsigned char* videoMemory = (unsigned char*)0xA0000;
     
-    for (;;)
+    unsigned char color = 0;
+    while (true)
     {
         for (int i = 0; i < videoWidth * videoHeight; i++)
         {
