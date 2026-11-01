@@ -24,8 +24,7 @@ start:
 	push dx
 	jmp 0x7E00
 
-bootDrive:
-	db 0
+bootDrive: db 0
 	
 diskAddressPacket:
 .size:
@@ -33,7 +32,7 @@ diskAddressPacket:
 .zero:
 	db 0
 .sectorCount:
-	dw 2
+	dw 4
 .bufferSegment:
 	dw 0x7E00
 .bufferOffset:

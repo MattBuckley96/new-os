@@ -1,19 +1,30 @@
-#define false 0
 #define true 1
+#define false 0
 
-void kernel_main(void)
+void kernel_main(unsigned int videoAddress,
+                 unsigned short videoWidth,
+                 unsigned short videoHeight)
 {
-    int videoWidth = 320;
-    int videoHeight = 200;
-    unsigned char* videoMemory = (unsigned char*)0xA0000;
+    unsigned int* videoMemory = (unsigned int*)videoAddress;
     
-    unsigned char color = 0;
+    int xoffset = 0;
+    int yoffset = 0;
     while (true)
     {
-        for (int i = 0; i < videoWidth * videoHeight; i++)
+        for (int y = 0; y < videoHeight; y++)
         {
-            videoMemory[i] = color;
+            for (int x = 0; x < videoWidth; x++)
+            {
+                int pixelIndex = x + (y * videoWidth);
+                
+                unsigned char b = (unsigned char)x + xoffset;
+                unsigned char g = (unsigned char)y;
+                
+                unsigned int pixel = (g << 8) | b;
+                videoMemory[pixelIndex] = pixel;
+            }
         }
-        color++;
+        
+        xoffset++;
     }
 }
