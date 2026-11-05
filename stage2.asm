@@ -3,7 +3,7 @@ org 0x7E00
 
 CODE_SEG equ gdtCodeSegment - gdtStart
 DATA_SEG equ gdtDataSegment - gdtStart
-KERNEL_ENTRY_ADDRESS equ 10000
+KERNEL_ENTRY_ADDRESS equ 0x10000
 VIDEO_WIDTH equ 1280
 VIDEO_HEIGHT equ 720
 BPP equ 32
@@ -23,7 +23,7 @@ get_vbe_info:
 	call print
 	jmp stop
 .no_error:
- 
+
 find_suitable_video_mode:
 	; get video mode from array
 	mov ax, [vbeInfoBlock.videoModeSegment]
@@ -33,35 +33,47 @@ find_suitable_video_mode:
 	mov cx, [fs:di]
 	add di, 2
 	cmp cx, 0xFFFF
-	je .error
+	je .no_modes
 
 	; get video mode info
 	push di
 	mov ax, 0x4F01
-	mov di, videoModeInfo
+	mov di, modeInfoBlock
 	int 0x10
 	pop di
 	cmp ax, 0x004F
 	jne .error
 
-	mov ax, [videoModeInfo.videoWidth]
+	push word [modeInfoBlock.bitsPerPixel]
+	push word [modeInfoBlock.videoHeight]
+	push word [modeInfoBlock.videoWidth]
+	push cx
+	call debug_print_video_mode_info
+	add sp, 8
+
+	mov ax, [modeInfoBlock.videoWidth]
 	cmp ax, VIDEO_WIDTH
 	jne .next_video_mode
 	
-	mov ax, [videoModeInfo.videoHeight]
+	mov ax, [modeInfoBlock.videoHeight]
 	cmp ax, VIDEO_HEIGHT
 	jne .next_video_mode
 
-	mov al, [videoModeInfo.bitsPerPixel]
+	mov al, [modeInfoBlock.bitsPerPixel]
 	cmp al, BPP
 	jne .next_video_mode
 
 	; found a video mode, now set it
 	mov ax, 0x4F02
 	mov bx, cx
+	or bx, 0x4000 ; make sure its a linear framebuffer
 	int 0x10
 	cmp ax, 0x004F
 	je .done
+.no_modes:
+	mov si, noVideoModesErrorMessage
+	call print
+	jmp stop
 .error:
 	mov si, getVideoModeInfoErrorMessage
 	call print
@@ -74,7 +86,13 @@ find_suitable_video_mode:
 	mov si, diskAddressPacket
 	int 0x13
 	
+	mov ax, 0x2401
+	int 0x15
+	
+	mov al, 0xDD
+	out 0x64, al
 set_a20:
+	jmp .done
 	in al, 0x92
 	test al, 2
 	jnz .done
@@ -93,6 +111,122 @@ set_a20:
 
 	jmp CODE_SEG:start32
 
+hexChars: db "0123456789ABCDEF"
+
+print_nibble:
+	push si
+	mov si, hexChars
+	add si, bx
+
+	mov ah, 0x0E
+	lodsb
+	int 0x10
+
+	pop si
+	ret
+
+print_byte:
+	push bx
+	shr bl, 4
+	call print_nibble
+	pop bx
+
+	and bl, 0xF
+	call print_nibble
+	ret
+
+print_bx:
+	push ax
+	push bx
+	shr bx, 8
+	call print_byte
+	pop bx
+
+	and bx, 0x00FF
+	call print_byte
+
+	pop ax
+	ret
+
+print_num:
+	push es
+	push di
+	mov bx, .buffer
+	mov es, bx
+	xor di, di
+	
+.loop:
+	xor dx, dx
+	push cx
+	mov cx, 10
+	div cx
+	pop cx
+
+	push ax
+	mov ah, 0x0E
+	mov al, dl
+	add al, '0'
+	mov [es:di], al
+	inc di
+	pop ax
+	
+	cmp ax, 0
+    jne .loop
+
+	mov ah, 0x0E
+.print_loop:
+	dec di
+	mov al, [es:di]
+	int 0x10
+	cmp di, 0
+	je .done
+	jmp .print_loop
+.done:
+	pop di
+	pop es
+	ret
+.buffer: times 10 db 0
+
+debug_print_video_mode_info:
+	push bp
+	mov bp, sp
+
+	mov bx, [bp + 4]
+	call print_bx
+
+	mov ah, 0x0E
+	mov al, ':'
+	int 0x10
+	mov al, ' '
+	int 0x10
+
+	mov ax, [bp + 6]
+	call print_num
+	
+	mov ah, 0x0E
+	mov al, 'x'
+	int 0x10
+
+	mov ax, [bp + 8]
+	call print_num
+
+	mov ah, 0x0E
+	mov al, 'x'
+	int 0x10
+
+	xor ax, ax
+	mov al, [bp + 10]
+	call print_num
+
+	mov ah, 0x0E
+	mov al, 0xA
+	int 0x10
+	mov al, 0xD
+	int 0x10
+
+	pop bp
+	ret
+
 print:
 	mov ah, 0x0E
 .loop:
@@ -106,10 +240,11 @@ print:
 
 stop:
 	hlt
-	jmp stop
+	jmp $
 
 getVbeInfoErrorMessage: db "Failed to get VBE Info!", 0
 getVideoModeInfoErrorMessage: db "Failed to get video mode!", 0
+noVideoModesErrorMessage: db "No more modes!", 0
 bootDrive: db 0
 
 gdtStart:
@@ -139,13 +274,13 @@ gdtDesc:
 diskAddressPacket:
 .size: db 0x10	
 .zero: db 0
-.sectorCount: dw 3
-.bufferSegment: dw KERNEL_ENTRY_ADDRESS
+.sectorCount: dw 127 ; TODO: dont hardcode this
 .bufferOffset: dw 0
+.bufferSegment: dw 0x1000
 .address: dq 5
 
 vbeInfoBlock:
-.signiature: dd 0
+.signiature: db "VBE2"
 .version: dw 0
 .oemStringPtr: dd 0
 .capabilities: dd 0
@@ -156,10 +291,10 @@ vbeInfoBlock:
 .oemVendorNamePtr: dd 0
 .oemProductNamePtr: dd 0
 .oemProductRevPtr: dd 0
-.reserved: resb 222
-.oemData: resb 256
+.reserved: times 222 db 0
+.oemData: times 256 db 0
 
-videoModeInfo:
+modeInfoBlock:
 .attributes: dw 0
 .winAAttributes: db 0
 .winBAttributes: db 0
@@ -194,7 +329,7 @@ videoModeInfo:
 .reserved2: dw 0
 .linBytesPerScanline: dw 0
 .bnkNumImagePages: db 0
-.linNmImagePages: db 0
+.linNumImagePages: db 0
 .linRedMaskSize: db 0
 .linRedFieldPosition: db 0
 .linGreenMaskSize: db 0
@@ -204,7 +339,8 @@ videoModeInfo:
 .linReservedMaskSize: db 0
 .linReservedFieldPosition: db 0
 .maxPixelClock: dd 0
-.reserved3: resb 190 ; TODO: find out why 189 fails???
+.reserved3: times 190 db 0
+ ; TODO: find out why 189 fails???
 
 bits 32
 
@@ -216,9 +352,13 @@ start32:
     mov gs, ax
     mov ss, ax
 	
-	push dword [videoModeInfo.physBasePtr]
-	push word [videoModeInfo.videoWidth]
-	push word [videoModeInfo.videoHeight]
+	push dword [modeInfoBlock.physBasePtr]
+
+	movzx eax, word [modeInfoBlock.videoWidth]
+	push eax
+	movzx eax, word [modeInfoBlock.videoHeight]
+	push eax
+
 	jmp KERNEL_ENTRY_ADDRESS
 
 times (512*4)-($-$$) db 0

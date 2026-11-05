@@ -8,10 +8,10 @@ stackBottom:
 
 section .text
 extern kernel_main
-global _start
+global _start:
 _start:
-	pop cx
-	pop bx
+	pop ecx
+	pop ebx
 	pop eax
 
 	mov esp, stackTop

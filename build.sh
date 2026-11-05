@@ -9,4 +9,4 @@ cat boot.bin kernel.bin > new_os.bin
 
 rm -f boot.bin kernel.bin stage1.bin stage2.bin *.o
 
-qemu-system-i386 new_os.bin -m 256
+qemu-system-i386 -enable-kvm new_os.bin -m 256
