@@ -402,11 +402,11 @@ static void read_sectors(unsigned int address, void* buffer, unsigned int count)
 }
 
 void render_glyph(unsigned int* framebuffer, int framebufferWidth,
-                  char c, int x, int y)
+                  char c, int x, int y, int scale)
 {
     if (c == ',')
     {
-        y += 4;
+        y += 4*scale;
     }
     
     if (c == 'Q')
@@ -414,17 +414,25 @@ void render_glyph(unsigned int* framebuffer, int framebufferWidth,
         y++;
     }
     
-    for (int row = 0; row < 10; row++)
+    int glyphWidth = 8;
+    int glyphHeight = 10;
+    int scaledGlyphWidth = glyphWidth*scale;
+    int scaledGlyphHeight = glyphHeight*scale;
+    
+    for (int row = 0; row < scaledGlyphHeight; row++)
     {
-        unsigned char byte = glpyhs[c][row];
+        int glyphY = row / scale;
+        unsigned char byte = glpyhs[c][glyphY];
         
-        for (int bit = 7; bit >= 0; bit--)
+        for (int bit = 0; bit < scaledGlyphWidth; bit++)
         {
-            bool bitIsOne = (byte >> bit) & 1;
+            int glpyhX = bit / scale;
+            int bitPos = (glyphWidth - (glpyhX));
+            bool bitIsOne = (byte >> bitPos) & 1;
             
             if (bitIsOne)
             {
-                int pixelIndex = ((8 - bit) + x) + ((row + y)*framebufferWidth);
+                int pixelIndex = (bit + x) + ((row + y)*framebufferWidth);
                 framebuffer[pixelIndex] = 0x00FFFFFF;
             }
         }
@@ -432,19 +440,19 @@ void render_glyph(unsigned int* framebuffer, int framebufferWidth,
 }
 
 void render_text(unsigned int* framebuffer, int framebufferWidth,
-                 const char* text, int x, int y)
+                 const char* text, int x, int y, int scale)
 {
     int xoffset = 0;
     
     while (*text)
     {
         
-        render_glyph(framebuffer, framebufferWidth, *text++, x, y);
-        x += 8;
+        render_glyph(framebuffer, framebufferWidth, *text++, x, y, scale);
+        x += 8*scale;
     }
 }
 
-void kernel_main(unsigned int videoAddress,
+void kernel_main(void* videoAddress,
                  int videoWidth,
                  int videoHeight)
 {
@@ -508,7 +516,7 @@ void kernel_main(unsigned int videoAddress,
             }
         }
         
-        render_text(framebuffer, videoWidth, "BRO THINKS HES HIM", 0, 0);
+        render_text(framebuffer, videoWidth, "THAT IS SO MUCH EASIER TO READ", 0, 0, 3);
         
         for (int i = 0; i < videoWidth*videoHeight; i++)
         {
