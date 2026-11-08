@@ -3,9 +3,11 @@ org 0x7E00
 
 CODE_SEG equ gdtCodeSegment - gdtStart
 DATA_SEG equ gdtDataSegment - gdtStart
+
+; TODO: kernel may end up becoming to large to fit under 0x7FFFF
 KERNEL_ENTRY_ADDRESS equ 0x10000
-VIDEO_WIDTH equ 1280
-VIDEO_HEIGHT equ 720
+VIDEO_WIDTH equ 1600
+VIDEO_HEIGHT equ 900
 BPP equ 32
 
 start:
@@ -25,30 +27,39 @@ get_vbe_info:
 .no_error:
 
 find_suitable_video_mode:
-	; get video mode from array
 	mov ax, [vbeInfoBlock.videoModeSegment]
-	mov fs, ax
+	mov es, ax
 	mov di, [vbeInfoBlock.videoModeOffset]
 .next_video_mode:
-	mov cx, [fs:di]
+	mov cx, [es:di]
 	add di, 2
 	cmp cx, 0xFFFF
 	je .no_modes
 
 	; get video mode info
+	push es
+	xor ax, ax
+	mov es, ax
 	push di
 	mov ax, 0x4F01
 	mov di, modeInfoBlock
 	int 0x10
 	pop di
+	pop es
 	cmp ax, 0x004F
 	jne .error
+
+	; skip if not hardware supported
+	mov ax, [modeInfoBlock.attributes]
+	and ax, 0x0081
+	cmp ax, 0x0081
+	jne .next_video_mode
 
 	push word [modeInfoBlock.bitsPerPixel]
 	push word [modeInfoBlock.videoHeight]
 	push word [modeInfoBlock.videoWidth]
 	push cx
-	call debug_print_video_mode_info
+	; call debug_print_video_mode_info
 	add sp, 8
 
 	mov ax, [modeInfoBlock.videoWidth]
@@ -149,11 +160,8 @@ print_bx:
 	ret
 
 print_num:
-	push es
-	push di
-	mov bx, .buffer
-	mov es, bx
-	xor di, di
+	push si
+	mov si, .buffer
 	
 .loop:
 	xor dx, dx
@@ -166,8 +174,8 @@ print_num:
 	mov ah, 0x0E
 	mov al, dl
 	add al, '0'
-	mov [es:di], al
-	inc di
+	mov [si], al
+	inc si
 	pop ax
 	
 	cmp ax, 0
@@ -175,15 +183,14 @@ print_num:
 
 	mov ah, 0x0E
 .print_loop:
-	dec di
-	mov al, [es:di]
+	dec si
+	mov al, [si]
 	int 0x10
-	cmp di, 0
+	cmp si, .buffer
 	je .done
 	jmp .print_loop
 .done:
-	pop di
-	pop es
+	pop si
 	ret
 .buffer: times 10 db 0
 
@@ -279,6 +286,7 @@ diskAddressPacket:
 .bufferSegment: dw 0x1000
 .address: dq 5
 
+align 4
 vbeInfoBlock:
 .signiature: db "VBE2"
 .version: dw 0
@@ -294,6 +302,7 @@ vbeInfoBlock:
 .reserved: times 222 db 0
 .oemData: times 256 db 0
 
+align 4
 modeInfoBlock:
 .attributes: dw 0
 .winAAttributes: db 0
@@ -314,7 +323,7 @@ modeInfoBlock:
 .memoryModel: db 0
 .bankSizeKB: db 0
 .numImagePages: db 0
-.reserved0: db 1
+.reserved0: db 9
 .redMaskSize: db 0
 .redFieldPosition: db 0
 .greenMaskSize: db 0
@@ -340,7 +349,6 @@ modeInfoBlock:
 .linReservedFieldPosition: db 0
 .maxPixelClock: dd 0
 .reserved3: times 190 db 0
- ; TODO: find out why 189 fails???
 
 bits 32
 

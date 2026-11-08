@@ -5,8 +5,6 @@ boot:
 	jmp start
 
 start:
-	mov [bootDrive], dl
-
 	cli
 	xor ax, ax
 	mov es, ax
@@ -14,6 +12,8 @@ start:
 	mov ss, ax
 	mov sp, 0x7C00
 	sti
+
+	mov [bootDrive], dl
 
 	; load stage2 off disk
 	mov ah, 0x42
@@ -33,9 +33,9 @@ diskAddressPacket:
 	db 0
 .sectorCount:
 	dw 4
-.bufferSegment:
-	dw 0x7E00
 .bufferOffset:
+	dw 0x7E00
+.bufferSegment:
 	dw 0
 .address:
 	dq 1
