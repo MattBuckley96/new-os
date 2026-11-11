@@ -17,9 +17,10 @@ _start:
 	mov esp, stackTop
 	mov ebp, esp
 
-	push ecx
-	push ebx
-	push eax
+	; frontbuffer
+	push eax ; .memory
+	push ecx ; .height
+	push ebx ; .width
 	call kernel_main
 
 times 510-($-$$) db 0

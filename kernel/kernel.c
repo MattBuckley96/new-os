@@ -1,360 +1,28 @@
-#include "image.h"
+#include "kernel_image.h"
+#include "kernel_font.h"
 
 typedef _Bool bool;
 #define true 1
 #define false 0
 
-// font
-static unsigned char glpyhs[255][10] = {
-    [' '] = {
-        0b00000000,
-        0b00000000,
-        0b00000000,
-        0b00000000,
-        0b00000000,
-        0b00000000,
-        0b00000000,
-        0b00000000,
-        0b00000000,
-        0b00000000,
-    },
-    ['!'] = {
-        0b00000000,
-        0b00100000,
-        0b00100000,
-        0b00100000,
-        0b00100000,
-        0b00100000,
-        0b00100000,
-        0b00100000,
-        0b00000000,
-        0b00100000,
-    },
-    ['A'] = {
-        0b00000000,
-        0b00111100,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01111110,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-    },
-    ['B'] = {
-        0b00000000,
-        0b01111100,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01111100,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01111100,
-    },
-    ['C'] = {
-        0b00000000,
-        0b00111100,
-        0b01000010,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01000010,
-        0b00111100,
-    },
-    ['D'] = {
-        0b00000000,
-        0b01111000,
-        0b01000100,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000100,
-        0b01111000,
-    },
-    ['E'] = {
-        0b00000000,
-        0b01111110,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01111000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01111110,
-    },
-    ['F'] = {
-        0b00000000,
-        0b01111110,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01111000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-    },
-    ['G'] = {
-        0b00000000,
-        0b00111100,
-        0b01000010,
-        0b01000000,
-        0b01000000,
-        0b01001110,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b00111100,
-    },
-    ['H'] = {
-        0b00000000,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01111110,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-    },
-    ['I'] = {
-        0b00000000,
-        0b01111100,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b01111100,
-    },
-    ['J'] = {
-        0b00000000,
-        0b00000010,
-        0b00000010,
-        0b00000010,
-        0b00000010,
-        0b00000010,
-        0b00000010,
-        0b01000010,
-        0b01000010,
-        0b00111100,
-    },
-    ['K'] = {
-        0b00000000,
-        0b01000010,
-        0b01000100,
-        0b01001000,
-        0b01010000,
-        0b01100000,
-        0b01010000,
-        0b01001000,
-        0b01000100,
-        0b01000010,
-    },
-    ['L'] = {
-        0b00000000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01111110,
-    },
-    ['M'] = {
-        0b00000000,
-        0b10000010,
-        0b11000110,
-        0b10101010,
-        0b10010010,
-        0b10010010,
-        0b10000010,
-        0b10000010,
-        0b10000010,
-        0b10000010,
-    },
-    ['N'] = {
-        0b00000000,
-        0b01000010,
-        0b01100010,
-        0b01100010,
-        0b01010010,
-        0b01010010,
-        0b01001010,
-        0b01001010,
-        0b01000110,
-        0b01000110,
-    },
-    ['O'] = {
-        0b00000000,
-        0b00111100,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b00111100,
-    },
-    ['P'] = {
-        0b00000000,
-        0b01111100,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01111100,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-        0b01000000,
-    },
-    ['R'] = {
-        0b00000000,
-        0b01111100,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01111100,
-        0b01001000,
-        0b01000100,
-        0b01000010,
-        0b01000010,
-    },
-    ['Q'] = {
-        0b00111100,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01001010,
-        0b01000100,
-        0b00111010,
-        0b00000010,
-    },
-    ['S'] = {
-        0b00000000,
-        0b00111100,
-        0b01000010,
-        0b01000000,
-        0b01000000,
-        0b00111100,
-        0b00000010,
-        0b00000010,
-        0b01000010,
-        0b00111100
-    },
-    ['T'] = {
-        0b00000000,
-        0b11111110,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-    },
-    ['U'] = {
-        0b00000000,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b00111100,
-    },
-    ['V'] = {
-        0b00000000,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b01000010,
-        0b00100100,
-        0b00100100,
-        0b00100100,
-        0b00011000,
-        0b00011000,
-    },
-    ['W'] = {
-        0b00000000,
-        0b10000010,
-        0b10000010,
-        0b10010010,
-        0b10010010,
-        0b10010010,
-        0b10101010,
-        0b01000100,
-        0b01000100,
-        0b01000100,
-    },
-    ['X'] = {
-        0b00000000,
-        0b01000010,
-        0b01000010,
-        0b00100100,
-        0b00100100,
-        0b00011000,
-        0b00100100,
-        0b00100100,
-        0b01000010,
-        0b01000010,
-    },
-    ['Y'] = {
-        0b00000000,
-        0b10000010,
-        0b10000010,
-        0b01000100,
-        0b01000100,
-        0b00101000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-        0b00010000,
-    },
-    ['Z'] = {
-        0b00000000,
-        0b01111110,
-        0b00000010,
-        0b00000100,
-        0b00001000,
-        0b00010000,
-        0b00100000,
-        0b01000000,
-        0b01000000,
-        0b01111110,
-    },
-    [','] = {
-        0b00000000,
-        0b00000000,
-        0b00000000,
-        0b00110000,
-        0b00110000,
-        0b00010000,
-        0b00100000,
-        0b00000000,
-        0b00000000,
-        0b00000000,
-    },
-};
+typedef struct {
+    int width;
+    int height;
+    void* memory;
+} VideoBuffer;
+
+// NOTE: needed for clang
+void* memset(void* address, int value, unsigned int size)
+{
+    unsigned char* memory = (unsigned char*)address;
+    
+    for (unsigned int i = 0; i < size; i++)
+    {
+        memory[i] = (unsigned char)value;
+    }
+    
+    return address;
+}
 
 static unsigned char inb(unsigned short port)
 {
@@ -401,8 +69,8 @@ static void read_sectors(unsigned int address, void* buffer, unsigned int count)
     }
 }
 
-void render_glyph(unsigned int* framebuffer, int framebufferWidth,
-                  char c, int x, int y, int scale)
+static void render_glyph(VideoBuffer* framebuffer, char c,
+                         int x, int y, int scale, unsigned int color)
 {
     if (c == ',')
     {
@@ -414,15 +82,16 @@ void render_glyph(unsigned int* framebuffer, int framebufferWidth,
         y++;
     }
     
-    int glyphWidth = 8;
-    int glyphHeight = 10;
+    int glyphWidth = GLYPH_WIDTH;
+    int glyphHeight = GLYPH_HEIGHT;
     int scaledGlyphWidth = glyphWidth*scale;
     int scaledGlyphHeight = glyphHeight*scale;
     
+    unsigned int* pixels = (unsigned int*)framebuffer->memory;
     for (int row = 0; row < scaledGlyphHeight; row++)
     {
         int glyphY = row / scale;
-        unsigned char byte = glpyhs[c][glyphY];
+        unsigned char byte = GLYPH_DATA[c][glyphY];
         
         for (int bit = 0; bit < scaledGlyphWidth; bit++)
         {
@@ -432,95 +101,127 @@ void render_glyph(unsigned int* framebuffer, int framebufferWidth,
             
             if (bitIsOne)
             {
-                int pixelIndex = (bit + x) + ((row + y)*framebufferWidth);
-                framebuffer[pixelIndex] = 0x00FFFFFF;
+                int pixelIndex = (bit + x) + ((row + y)*framebuffer->width);
+                pixels[pixelIndex] = color;
             }
         }
     }
 }
 
-void render_text(unsigned int* framebuffer, int framebufferWidth,
-                 const char* text, int x, int y, int scale)
+static void render_text(VideoBuffer* framebuffer, const char* text, 
+                        int x, int y, int scale, unsigned int color)
 {
     int xoffset = 0;
     
     while (*text)
     {
         
-        render_glyph(framebuffer, framebufferWidth, *text++, x, y, scale);
+        render_glyph(framebuffer, *text++, x, y, scale, color);
         x += 8*scale;
     }
 }
 
-void kernel_main(void* videoAddress,
-                 int videoWidth,
-                 int videoHeight)
+static void render_rect(VideoBuffer* buffer, int x, int y, 
+                        int width, int height, unsigned int color)
 {
-    unsigned int* videoMemory = (unsigned int*)videoAddress;
-    unsigned int* framebuffer = (unsigned int*)0x200000;
+    unsigned int* pixels = (unsigned int*)buffer->memory;
+    
+    for (int rectY = 0; rectY < height; rectY++)
+    {
+        for (int rectX = 0; rectX < width; rectX++)
+        {
+            int pixelIndex = (x + rectX) + ((y + rectY)*buffer->width);
+            pixels[pixelIndex] = color;
+        }
+    }
+}
+
+static void render_image(VideoBuffer* buffer, VideoBuffer* image, 
+                         int x, int y, int scale)
+{
+    int scaledImageWidth = image->width*scale;
+    int scaledImageHeight = image->height*scale;
+    unsigned int* videoBufferPixels = (unsigned int*)buffer->memory;
+    unsigned char* imagePixel = (unsigned char*)image->memory;
+    
+    for (int scaledY = 0; scaledY < scaledImageHeight; scaledY++)
+    {
+        for (int scaledX = 0; scaledX < scaledImageWidth; scaledX++)
+        {
+            int videoIndex = (x + scaledX) + ((y + scaledY)*buffer->width);
+            
+            int imageX = (scaledX*image->width) / scaledImageWidth;
+            int imageY = (scaledY*image->height) / scaledImageHeight;
+            int imageIndex = imageX + (imageY*image->width);
+            imagePixel = image->memory + (imageIndex*4);
+            
+            unsigned char r = *imagePixel++;
+            unsigned char g = *imagePixel++;
+            unsigned char b = *imagePixel++;
+            unsigned char a = *imagePixel++;
+            
+            if (a == 0)
+            {
+                continue;
+            }
+            
+            unsigned int color = (a << 24) | (r << 16) | (g << 8) | b;
+            videoBufferPixels[videoIndex] = color;
+        }
+    }
+    
+}
+
+static void render_weird_gradient(VideoBuffer* buffer, 
+                                  int blueOffset, int greenOffset)
+{
+    unsigned int* pixels = (unsigned int*)buffer->memory;
+    for (int y = 0; y < buffer->height; y++)
+    {
+        for (int x = 0; x < buffer->width; x++)
+        {
+            int pixelIndex = x + (y*buffer->width);
+            
+            unsigned char b = (unsigned char)x + blueOffset;
+            unsigned char g = (unsigned char)y + greenOffset;
+            
+            unsigned int color = 0xFF000000 | (g << 8) | b;
+            pixels[pixelIndex] = color;
+        }
+    }
+    
+}
+
+void kernel_main(VideoBuffer frontbuffer)
+{
+    unsigned int* frontbufferPixels = (unsigned int*)frontbuffer.memory;
+    
+    VideoBuffer backbuffer = {0};
+    backbuffer.width = frontbuffer.width;
+    backbuffer.height = frontbuffer.height;
+    backbuffer.memory = (void*)0x200000;
+    unsigned int* backbufferPixels = (unsigned int*)backbuffer.memory;
+    
+    VideoBuffer image = {0};
+    image.width = IMAGE_WIDTH;
+    image.height = IMAGE_HEIGHT;
+    image.memory = (void*)IMAGE_DATA;
     
     int xoffset = 0;
     int yoffset = 0;
     
     while (true)
     {
-        // render weird gradient
-        for (int y = 0; y < videoHeight; y++)
-        {
-            for (int x = 0; x < videoWidth; x++)
-            {
-                int pixelIndex = x + (y*videoWidth);
-                
-                unsigned char b = (unsigned char)x + xoffset;
-                unsigned char g = (unsigned char)y + yoffset;
-                
-                unsigned int color = (g << 8) | b;
-                framebuffer[pixelIndex] = color;
-            }
-        }
+        render_weird_gradient(&backbuffer, xoffset, yoffset);
+        render_rect(&backbuffer, 0, 0, 800, 400, 0x00111111);
+        render_image(&backbuffer, &image, 128, 64, 8);
+        render_text(&backbuffer, "THAT IS SO MUCH EASIER TO READ", 0, 0, 3, 0x00FFFF00);
         
         xoffset++;
         
-        // render image 
-        unsigned char* imageData = (unsigned char*)IMAGE_DATA;
-        unsigned char* pixel = imageData;
-        int imageWidth = IMAGE_WIDTH;
-        int imageHeight = IMAGE_HEIGHT;
-        int imageScale = 8;
-        int scaledImageWidth = imageWidth*imageScale;
-        int scaledImageHeight = imageHeight*imageScale;
-        
-        for (int y = 0; y < scaledImageHeight; y++)
+        for (int i = 0; i < frontbuffer.width*frontbuffer.height; i++)
         {
-            for (int x = 0; x < scaledImageWidth; x++)
-            {
-                int videoIndex = x + (y*videoWidth);
-                
-                int imageX = (x*imageWidth) / scaledImageWidth;
-                int imageY = (y*imageHeight) / scaledImageHeight;
-                int imageIndex = imageX + (imageY*imageWidth);
-                pixel = imageData + (imageIndex*4);
-                
-                unsigned char r = *pixel++;
-                unsigned char g = *pixel++;
-                unsigned char b = *pixel++;
-                unsigned char a = *pixel++;
-                
-                if (a == 0)
-                {
-                    continue;
-                }
-                
-                unsigned int color = (a << 24) | (r << 16) | (g << 8) | b;
-                framebuffer[videoIndex] = color;
-            }
-        }
-        
-        render_text(framebuffer, videoWidth, "THAT IS SO MUCH EASIER TO READ", 0, 0, 3);
-        
-        for (int i = 0; i < videoWidth*videoHeight; i++)
-        {
-            videoMemory[i] = framebuffer[i];
+            frontbufferPixels[i] = backbufferPixels[i];
         }
     }
 }
