@@ -142,7 +142,7 @@ static void render_image(VideoBuffer* buffer, VideoBuffer* image,
     int scaledImageWidth = image->width*scale;
     int scaledImageHeight = image->height*scale;
     unsigned int* videoBufferPixels = (unsigned int*)buffer->memory;
-    unsigned char* imagePixel = (unsigned char*)image->memory;
+    unsigned int* imagePixels = (unsigned int*)image->memory;
     
     for (int scaledY = 0; scaledY < scaledImageHeight; scaledY++)
     {
@@ -153,12 +153,13 @@ static void render_image(VideoBuffer* buffer, VideoBuffer* image,
             int imageX = (scaledX*image->width) / scaledImageWidth;
             int imageY = (scaledY*image->height) / scaledImageHeight;
             int imageIndex = imageX + (imageY*image->width);
-            imagePixel = image->memory + (imageIndex*4);
             
-            unsigned char r = *imagePixel++;
-            unsigned char g = *imagePixel++;
-            unsigned char b = *imagePixel++;
-            unsigned char a = *imagePixel++;
+            unsigned int pixel = imagePixels[imageIndex];
+            
+            unsigned char r = pixel;
+            unsigned char g = pixel >> 8;
+            unsigned char b = pixel >> 16;
+            unsigned char a = pixel >> 24;
             
             if (a == 0)
             {
@@ -169,13 +170,13 @@ static void render_image(VideoBuffer* buffer, VideoBuffer* image,
             videoBufferPixels[videoIndex] = color;
         }
     }
-    
 }
 
 static void render_weird_gradient(VideoBuffer* buffer, 
                                   int blueOffset, int greenOffset)
 {
     unsigned int* pixels = (unsigned int*)buffer->memory;
+    
     for (int y = 0; y < buffer->height; y++)
     {
         for (int x = 0; x < buffer->width; x++)
@@ -185,22 +186,49 @@ static void render_weird_gradient(VideoBuffer* buffer,
             unsigned char b = (unsigned char)x + blueOffset;
             unsigned char g = (unsigned char)y + greenOffset;
             
-            unsigned int color = 0xFF000000 | (g << 8) | b;
+            unsigned int color = (g << 8) | b;
             pixels[pixelIndex] = color;
         }
     }
+}
+
+
+static void render_gradient(VideoBuffer* buffer, 
+                            unsigned int color1, unsigned int color2)
+{
+    unsigned int* pixels = (unsigned int*)buffer->memory;
     
+    for (int y = 0; y < buffer->height; y++)
+    {
+        for (int x = 0; x < buffer->width; x++)
+        {
+            int pixelIndex = x + (y*buffer->width);
+            
+            unsigned char r1 = (color1 >> 16);
+            unsigned char r2 = (color2 >> 16);
+            unsigned char g1 = (color1 >> 8);
+            unsigned char g2 = (color2 >> 8);
+            unsigned char b1 = color1;
+            unsigned char b2 = color2;
+            
+            float gradientValue = (float)x / (float)buffer->width;
+            
+            unsigned char r = (unsigned char)((r2 - r1) * gradientValue + r1);
+            unsigned char g = (unsigned char)((g2 - g1) * gradientValue + g1);
+            unsigned char b = (unsigned char)((b2 - b1) * gradientValue + b1);
+            
+            unsigned int color = (r << 16) | (g << 8) | b;
+            pixels[pixelIndex] = color;
+        }
+    }
 }
 
 void kernel_main(VideoBuffer frontbuffer)
 {
-    unsigned int* frontbufferPixels = (unsigned int*)frontbuffer.memory;
-    
     VideoBuffer backbuffer = {0};
     backbuffer.width = frontbuffer.width;
     backbuffer.height = frontbuffer.height;
     backbuffer.memory = (void*)0x200000;
-    unsigned int* backbufferPixels = (unsigned int*)backbuffer.memory;
     
     VideoBuffer image = {0};
     image.width = IMAGE_WIDTH;
@@ -212,13 +240,16 @@ void kernel_main(VideoBuffer frontbuffer)
     
     while (true)
     {
-        render_weird_gradient(&backbuffer, xoffset, yoffset);
-        render_rect(&backbuffer, 0, 0, 800, 400, 0x00111111);
+        //render_weird_gradient(&backbuffer, xoffset, yoffset);
+        render_gradient(&backbuffer, 0xFF00FFFF, 0xFFFF00FF);
+        render_rect(&backbuffer, 96, 0, 400, 400, 0xFFFFFFFF);
         render_image(&backbuffer, &image, 128, 64, 8);
-        render_text(&backbuffer, "THAT IS SO MUCH EASIER TO READ", 0, 0, 3, 0x00FFFF00);
+        render_text(&backbuffer, "ME WHEN WOOPER", 128, 20, 3, 0xFF77BBFF);
         
         xoffset++;
         
+        unsigned int* frontbufferPixels = (unsigned int*)frontbuffer.memory;
+        unsigned int* backbufferPixels = (unsigned int*)backbuffer.memory;
         for (int i = 0; i < frontbuffer.width*frontbuffer.height; i++)
         {
             frontbufferPixels[i] = backbufferPixels[i];

@@ -360,6 +360,13 @@ start32:
     mov gs, ax
     mov ss, ax
 	
+	; setup floating point stuff
+	mov eax, cr0
+	and ax, ~(0b1100) ; clear EM and TS bit
+	or ax, 0b100010 ; set MP and NE
+	mov cr0, eax
+	finit
+
 	push dword [modeInfoBlock.physBasePtr]
 
 	movzx eax, word [modeInfoBlock.videoWidth]
